@@ -10,9 +10,11 @@ import type { GarmentDescription } from "@/types/garment";
 import type { BodyMeasurements, MeasurementKey } from "@/types/measurements";
 import type { PatternPieceData } from "@/data/pattern-pieces";
 import type { DraftPiece, ChatMessage } from "@/types/draft-piece";
+import type { LLMPieceDefinition } from "@/types/llm-piece";
 import { DEFAULT_MEASUREMENTS } from "@/data/default-measurements";
-import { generatePattern } from "@/lib/pattern-generator";
 import { applyDraftPieces } from "@/lib/draft-to-description";
+import { convertLLMPieces } from "@/lib/llm-to-pattern";
+import { generatePiecesFromLLM } from "@/lib/api";
 
 export type WizardStep =
   | "upload"
@@ -35,6 +37,13 @@ interface PatternState {
   measurements: BodyMeasurements;
   patternPieces: PatternPieceData[];
   selectedTemplate: string | null;
+  // LLM generation state
+  pieceDefinitions: LLMPieceDefinition[];
+  generating: boolean;
+  generateError: string | null;
+  // Viewer chat state
+  viewerChatMessages: ChatMessage[];
+  viewerChatLoading: boolean;
 }
 
 interface PatternActions {
@@ -55,7 +64,14 @@ interface PatternActions {
   clearChat: () => void;
   setMeasurement: (key: MeasurementKey, value: number) => void;
   setMeasurements: (measurements: BodyMeasurements) => void;
-  regeneratePattern: () => void;
+  // LLM generation actions
+  generateFromLLM: () => Promise<void>;
+  setPieceDefinitions: (defs: LLMPieceDefinition[]) => void;
+  updatePieceDefinition: (id: string, updated: LLMPieceDefinition) => void;
+  // Viewer chat actions
+  addViewerChatMessage: (message: ChatMessage) => void;
+  setViewerChatLoading: (loading: boolean) => void;
+  clearViewerChat: () => void;
 }
 
 type PatternContextType = PatternState & PatternActions;
@@ -76,7 +92,15 @@ export function PatternProvider({ children }: { children: ReactNode }) {
   const [measurements, setMeasurementsRaw] = useState<BodyMeasurements>(
     DEFAULT_MEASUREMENTS,
   );
-  const [regenerateKey, setRegenerateKey] = useState(0);
+
+  // LLM generation state
+  const [pieceDefinitions, setPieceDefinitions] = useState<LLMPieceDefinition[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Viewer chat state
+  const [viewerChatMessages, setViewerChatMessages] = useState<ChatMessage[]>([]);
+  const [viewerChatLoading, setViewerChatLoading] = useState(false);
 
   // Derived: apply draft piece toggles to base description
   const effectiveDescription = useMemo(() => {
@@ -85,12 +109,11 @@ export function PatternProvider({ children }: { children: ReactNode }) {
     return applyDraftPieces(garmentDescription, draftPieces);
   }, [garmentDescription, draftPieces]);
 
-  // Derived: generate pattern pieces from effective description + measurements
-  const patternPieces = useMemo(() => {
-    if (!effectiveDescription) return [];
-    return generatePattern(effectiveDescription, measurements, draftPieces);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveDescription, measurements, draftPieces, regenerateKey]);
+  // Derived: convert LLM piece definitions to renderable pattern pieces
+  const patternPieces = useMemo(
+    () => convertLLMPieces(pieceDefinitions),
+    [pieceDefinitions],
+  );
 
   const setStep = useCallback((step: WizardStep) => {
     setCurrentStep(step);
@@ -135,8 +158,42 @@ export function PatternProvider({ children }: { children: ReactNode }) {
     setMeasurementsRaw(m);
   }, []);
 
-  const regeneratePattern = useCallback(() => {
-    setRegenerateKey((k) => k + 1);
+  // LLM generation action
+  const generateFromLLM = useCallback(async () => {
+    const desc = effectiveDescription ?? garmentDescription;
+    if (!desc) {
+      setGenerateError("No garment description available.");
+      return;
+    }
+    setGenerating(true);
+    setGenerateError(null);
+    setPieceDefinitions([]);
+    try {
+      const pieces = await generatePiecesFromLLM(desc, draftPieces, measurements);
+      setPieceDefinitions(pieces);
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  }, [effectiveDescription, garmentDescription, draftPieces, measurements]);
+
+  const updatePieceDefinition = useCallback(
+    (id: string, updated: LLMPieceDefinition) => {
+      setPieceDefinitions((prev) =>
+        prev.map((p) => (p.id === id ? updated : p)),
+      );
+    },
+    [],
+  );
+
+  // Viewer chat actions
+  const addViewerChatMessage = useCallback((message: ChatMessage) => {
+    setViewerChatMessages((prev) => [...prev, message]);
+  }, []);
+
+  const clearViewerChat = useCallback(() => {
+    setViewerChatMessages([]);
   }, []);
 
   const value: PatternContextType = useMemo(
@@ -153,6 +210,11 @@ export function PatternProvider({ children }: { children: ReactNode }) {
       measurements,
       patternPieces,
       selectedTemplate,
+      pieceDefinitions,
+      generating,
+      generateError,
+      viewerChatMessages,
+      viewerChatLoading,
       setStep,
       setUploadedImage,
       setGarmentDescription,
@@ -167,7 +229,12 @@ export function PatternProvider({ children }: { children: ReactNode }) {
       clearChat,
       setMeasurement,
       setMeasurements,
-      regeneratePattern,
+      generateFromLLM,
+      setPieceDefinitions,
+      updatePieceDefinition,
+      addViewerChatMessage,
+      setViewerChatLoading,
+      clearViewerChat,
     }),
     [
       currentStep,
@@ -182,6 +249,11 @@ export function PatternProvider({ children }: { children: ReactNode }) {
       measurements,
       patternPieces,
       selectedTemplate,
+      pieceDefinitions,
+      generating,
+      generateError,
+      viewerChatMessages,
+      viewerChatLoading,
       setStep,
       setGarmentDescription,
       toggleDraftPiece,
@@ -190,7 +262,10 @@ export function PatternProvider({ children }: { children: ReactNode }) {
       clearChat,
       setMeasurement,
       setMeasurements,
-      regeneratePattern,
+      generateFromLLM,
+      updatePieceDefinition,
+      addViewerChatMessage,
+      clearViewerChat,
     ],
   );
 

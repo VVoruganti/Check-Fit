@@ -59,7 +59,13 @@ export default function RefineStep() {
         }
         if (event.type === "updates") {
           if (event.updatedPieces) {
-            setDraftPieces(event.updatedPieces);
+            // Default enabled to true — LLMs often omit the field when rewriting the array
+            setDraftPieces(
+              event.updatedPieces.map((p) => ({
+                ...p,
+                enabled: p.enabled !== false,
+              })),
+            );
           }
           if (event.updatedDescription) {
             setGarmentDescription({

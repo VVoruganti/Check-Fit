@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +9,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
 import { usePattern } from "@/context/PatternContext";
 import { generatePatternPDF } from "@/lib/pdf";
+import { streamPieceRefinement } from "@/lib/api";
 import type { PatternPieceData } from "@/data/pattern-pieces";
 
 /** Convert a THREE.Shape to an SVG path string. */
@@ -48,11 +50,25 @@ function shapeToSvgPath(piece: PatternPieceData, scale: number, offsetX: number,
 }
 
 export default function PatternViewerPage() {
-  const { patternPieces, garmentDescription, measurements } = usePattern();
+  const {
+    patternPieces,
+    garmentDescription,
+    measurements,
+    pieceDefinitions,
+    updatePieceDefinition,
+    viewerChatMessages,
+    viewerChatLoading,
+    addViewerChatMessage,
+    setViewerChatLoading,
+    clearViewerChat,
+  } = usePattern();
   const [zoom, setZoom] = useState(1);
   const [showSeamAllowance, setShowSeamAllowance] = useState(true);
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const prevPieceRef = useRef<string | null>(null);
 
   const handleDownloadPDF = useCallback(async () => {
     if (!garmentDescription || patternPieces.length === 0) return;
@@ -66,6 +82,77 @@ export default function PatternViewerPage() {
 
   // Auto-select the first piece when available
   const activePiece = selectedPiece ?? patternPieces[0]?.id ?? null;
+
+  // Clear chat when piece selection changes
+  useEffect(() => {
+    if (prevPieceRef.current !== null && prevPieceRef.current !== activePiece) {
+      clearViewerChat();
+    }
+    prevPieceRef.current = activePiece;
+  }, [activePiece, clearViewerChat]);
+
+  // Scroll chat to bottom on new messages
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [viewerChatMessages]);
+
+  const activePieceDef = useMemo(
+    () => pieceDefinitions.find((d) => d.id === activePiece),
+    [pieceDefinitions, activePiece],
+  );
+
+  const handleSendChat = useCallback(async () => {
+    const text = chatInput.trim();
+    if (!text || !activePieceDef || !garmentDescription || viewerChatLoading) return;
+
+    setChatInput("");
+    const userMsg = { role: "user" as const, content: text };
+    addViewerChatMessage(userMsg);
+    setViewerChatLoading(true);
+
+    const allMessages = [...viewerChatMessages, userMsg];
+    let assistantText = "";
+
+    try {
+      for await (const event of streamPieceRefinement(
+        allMessages,
+        activePieceDef,
+        garmentDescription,
+        measurements,
+        pieceDefinitions.map((d) => d.name),
+      )) {
+        if (event.type === "text" && event.content) {
+          assistantText += event.content;
+        } else if (event.type === "updates" && event.updatedPiece) {
+          updatePieceDefinition(activePieceDef.id, event.updatedPiece);
+        }
+      }
+
+      // Strip <updates> block from display text
+      const displayText = assistantText.replace(/<updates>[\s\S]*?<\/updates>/g, "").trim();
+      if (displayText) {
+        addViewerChatMessage({ role: "assistant", content: displayText });
+      }
+    } catch (err) {
+      addViewerChatMessage({
+        role: "assistant",
+        content: `Error: ${err instanceof Error ? err.message : "Failed to refine piece"}`,
+      });
+    } finally {
+      setViewerChatLoading(false);
+    }
+  }, [
+    chatInput,
+    activePieceDef,
+    garmentDescription,
+    measurements,
+    pieceDefinitions,
+    viewerChatMessages,
+    viewerChatLoading,
+    addViewerChatMessage,
+    setViewerChatLoading,
+    updatePieceDefinition,
+  ]);
 
   const zoomIn = () => setZoom((z) => Math.min(z + 0.25, 3));
   const zoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.25));
@@ -241,7 +328,7 @@ export default function PatternViewerPage() {
         </div>
 
         {/* SVG Canvas */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-2">
           <Card className="overflow-hidden">
             <CardContent className="p-0">
               <div className="relative overflow-auto bg-white" style={{ height: "600px" }}>
@@ -345,6 +432,80 @@ export default function PatternViewerPage() {
                     </text>
                   )}
                 </svg>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Chat Panel */}
+        <div className="lg:col-span-1">
+          <Card className="flex flex-col" style={{ height: "600px" }}>
+            <CardHeader className="pb-3 shrink-0">
+              <CardTitle className="text-base">
+                {activePieceDef
+                  ? `Refining: ${activePieceDef.name}`
+                  : "Piece Chat"
+                }
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Ask to modify the selected piece shape
+              </p>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col overflow-hidden p-0">
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-4 space-y-3">
+                {viewerChatMessages.length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-8">
+                    <p>Select a piece and describe changes.</p>
+                    <p className="mt-1 text-xs">e.g. "make this wider" or "add a curved neckline"</p>
+                  </div>
+                )}
+                {viewerChatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`text-sm rounded-lg px-3 py-2 ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground ml-6"
+                        : "bg-muted mr-6"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                ))}
+                {viewerChatLoading && (
+                  <div className="bg-muted rounded-lg px-3 py-2 mr-6 text-sm text-muted-foreground">
+                    Thinking...
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="shrink-0 border-t p-3">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendChat();
+                  }}
+                  className="flex gap-2"
+                >
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={activePieceDef ? "Describe changes..." : "Select a piece first"}
+                    disabled={!activePieceDef || viewerChatLoading}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!chatInput.trim() || !activePieceDef || viewerChatLoading}
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                  </Button>
+                </form>
               </div>
             </CardContent>
           </Card>

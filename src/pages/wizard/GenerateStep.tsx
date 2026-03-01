@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,13 @@ export default function GenerateStep() {
     effectiveDescription,
     garmentDescription,
     draftPieces,
-    regeneratePattern,
+    generating,
+    generateError,
+    generateFromLLM,
   } = usePattern();
   const [status, setStatus] = useState("Initializing...");
   const [elapsed, setElapsed] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const started = useRef(false);
 
   // Elapsed timer
   useEffect(() => {
@@ -23,38 +25,40 @@ export default function GenerateStep() {
     return () => clearInterval(interval);
   }, []);
 
-  // Effect 1: trigger regeneration on mount
+  // Effect 1: trigger LLM generation on mount
   useEffect(() => {
-    console.log("[GenerateStep] Starting generation...");
+    console.log("[GenerateStep] Starting LLM generation...");
     console.log("[GenerateStep] garmentDescription:", garmentDescription?.category ?? "null");
     console.log("[GenerateStep] draftPieces:", draftPieces.length, "enabled:", draftPieces.filter(p => p.enabled).length);
     console.log("[GenerateStep] effectiveDescription:", effectiveDescription?.category ?? "null");
 
     if (!effectiveDescription && !garmentDescription) {
-      setError("No garment description available. Please go back and analyze an image or select a template.");
-      setStatus("Error");
       return;
     }
 
-    setStatus("Generating pattern pieces...");
-    regeneratePattern();
+    started.current = true;
+    setStatus("Generating pattern pieces with AI...");
+    generateFromLLM();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Effect 2: navigate reactively once pieces are ready
+  // Effect 2: navigate once generation started AND pieces are ready
   useEffect(() => {
-    if (patternPieces.length > 0) {
+    if (started.current && !generating && patternPieces.length > 0) {
       console.log("[GenerateStep] patternPieces ready:", patternPieces.length);
       setStatus(`Generated ${patternPieces.length} pieces. Redirecting...`);
       navigate("/pattern");
     }
-  }, [patternPieces.length, navigate]);
+  }, [generating, patternPieces.length, navigate]);
+
+  const hasError = generateError || (!effectiveDescription && !garmentDescription);
+  const errorMessage = generateError ?? "No garment description available. Please go back and analyze an image or select a template.";
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
       <Card className="w-full max-w-md">
         <CardContent className="p-8 text-center">
-          {error ? (
+          {hasError ? (
             <>
               <div className="flex justify-center mb-4 text-destructive">
                 <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -62,7 +66,7 @@ export default function GenerateStep() {
                 </svg>
               </div>
               <h2 className="text-xl font-semibold mb-2">Generation Failed</h2>
-              <p className="text-muted-foreground mb-4">{error}</p>
+              <p className="text-muted-foreground mb-4">{errorMessage}</p>
               <Button onClick={() => navigate("/create/upload")}>
                 Start Over
               </Button>
@@ -88,8 +92,8 @@ export default function GenerateStep() {
                 {elapsed > 0 && `${elapsed}s elapsed`}
                 {effectiveDescription &&
                   ` | ${effectiveDescription.category}`}
-                {patternPieces.length > 0 &&
-                  ` | ${patternPieces.length} pieces`}
+                {draftPieces.filter(p => p.enabled).length > 0 &&
+                  ` | ${draftPieces.filter(p => p.enabled).length} pieces`}
               </p>
             </>
           )}

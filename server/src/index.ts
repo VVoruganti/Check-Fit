@@ -34,6 +34,8 @@ const { default: vision } = await import("./routes/vision.js");
 const { default: chat } = await import("./routes/chat.js");
 const { default: transcribe } = await import("./routes/transcribe.js");
 const { default: tts } = await import("./routes/tts.js");
+const { default: generatePieces } = await import("./routes/generate-pieces.js");
+const { default: refinePiece } = await import("./routes/refine-piece.js");
 
 const app = new Hono();
 
@@ -43,6 +45,8 @@ app.route("/api/vision", vision);
 app.route("/api/chat", chat);
 app.route("/api/transcribe", transcribe);
 app.route("/api/tts", tts);
+app.route("/api/generate-pieces", generatePieces);
+app.route("/api/refine-piece", refinePiece);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
