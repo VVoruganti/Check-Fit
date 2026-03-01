@@ -1,8 +1,14 @@
 import type { BodyMeasurements } from "@/types/measurements";
 import type { GarmentDescription } from "@/types/garment";
 import type { PatternPieceData } from "@/data/pattern-pieces";
-import { SCALE, createCurvedShape, type ShapeCommand } from "./utils";
+import {
+  SCALE,
+  createCurvedShape,
+  createLocalizedAnchors,
+  type ShapeCommand,
+} from "./utils";
 import { PIECE_COLORS } from "@/data/piece-colors";
+import { computeDressFormProfile } from "@/lib/assembly-positions";
 
 export function generateBodice(
   measurements: BodyMeasurements,
@@ -10,6 +16,8 @@ export function generateBodice(
 ): PatternPieceData[] {
   const bodice = description.bodice;
   if (!bodice) return [];
+
+  const profile = computeDressFormProfile(measurements);
 
   const easeMap = { fitted: 1, "semi-fitted": 2, loose: 4 };
   const ease = easeMap[bodice.fit];
@@ -29,13 +37,11 @@ export function generateBodice(
   const bodiceFit = bodice.fit;
 
   function buildBodiceShape(isFront: boolean): ShapeCommand[] {
-    const nd = isFront ? neckDepth : neckDepth * 0.5; // back neckline is shallower
+    const nd = isFront ? neckDepth : neckDepth * 0.5;
     const commands: ShapeCommand[] = [];
 
-    // Start at top-left shoulder
     commands.push({ type: "move", x: -halfWidth, y: height / 2 - armholeDepth * 0.2 });
 
-    // Left armhole curve down
     commands.push({
       type: "curve",
       cpX: -halfWidth - halfWidth * 0.05,
@@ -44,10 +50,8 @@ export function generateBodice(
       y: -height / 2,
     });
 
-    // Bottom edge
     commands.push({ type: "line", x: halfWidth - halfWidth * 0.1, y: -height / 2 });
 
-    // Right armhole curve up
     commands.push({
       type: "curve",
       cpX: halfWidth + halfWidth * 0.05,
@@ -56,10 +60,8 @@ export function generateBodice(
       y: height / 2 - armholeDepth * 0.2,
     });
 
-    // Shoulder to neckline (right side)
     commands.push({ type: "line", x: neckWidth, y: height / 2 });
 
-    // Neckline curve
     if (necklineStyle === "v-neck" && isFront) {
       commands.push({ type: "line", x: 0, y: height / 2 - nd });
       commands.push({ type: "line", x: -neckWidth, y: height / 2 });
@@ -68,7 +70,6 @@ export function generateBodice(
       commands.push({ type: "line", x: -neckWidth, y: height / 2 - nd });
       commands.push({ type: "line", x: -neckWidth, y: height / 2 });
     } else {
-      // crew, scoop, boat — smooth curve
       commands.push({
         type: "curve",
         cpX: 0,
@@ -83,8 +84,32 @@ export function generateBodice(
 
   const frontShape = createCurvedShape(buildBodiceShape(true));
   const backShape = createCurvedShape(buildBodiceShape(false));
+  const topY = height / 2;
+  const bottomY = -height / 2;
+  const armholeY = height / 2 - armholeDepth * 0.2;
+  const sideY = bottomY + height * 0.18;
 
-  const pieces: PatternPieceData[] = [
+  const frontAnchors = createLocalizedAnchors(frontShape, {
+    shoulderLeft: [-halfWidth * 0.92, armholeY],
+    shoulderRight: [halfWidth * 0.92, armholeY],
+    armholeLeft: [-halfWidth * 0.96, armholeY - armholeDepth * 0.18],
+    armholeRight: [halfWidth * 0.96, armholeY - armholeDepth * 0.18],
+    sideLeft: [-halfWidth * 0.86, sideY],
+    sideRight: [halfWidth * 0.86, sideY],
+    neckCenter: [0, topY - neckDepth],
+  });
+
+  const backAnchors = createLocalizedAnchors(backShape, {
+    shoulderLeft: [-halfWidth * 0.92, armholeY],
+    shoulderRight: [halfWidth * 0.92, armholeY],
+    armholeLeft: [-halfWidth * 0.96, armholeY - armholeDepth * 0.18],
+    armholeRight: [halfWidth * 0.96, armholeY - armholeDepth * 0.18],
+    sideLeft: [-halfWidth * 0.86, sideY],
+    sideRight: [halfWidth * 0.86, sideY],
+    neckCenter: [0, topY - neckDepth * 0.5],
+  });
+
+  return [
     {
       id: "front-bodice",
       name: "Front Bodice",
@@ -92,11 +117,15 @@ export function generateBodice(
       shape: frontShape,
       flatPosition: [-2.5, 1.5, 0],
       flatRotation: [0, 0, 0],
-      assembledPosition: [0, 0.8, halfWidth * 3],
+      assembledPosition: [0, profile.bodiceCenterY, profile.bustR],
       assembledRotation: [0, 0, 0],
       cutCount: 1,
       cutOnFold: true,
       instructions: `Cut 1 on fold. ${necklineStyle} neckline, ${bodiceFit} fit.`,
+      assembly: {
+        role: "torso-front",
+        anchors: frontAnchors,
+      },
     },
     {
       id: "back-bodice",
@@ -105,13 +134,15 @@ export function generateBodice(
       shape: backShape,
       flatPosition: [2.5, 1.5, 0],
       flatRotation: [0, 0, 0],
-      assembledPosition: [0, 0.8, -halfWidth * 3],
+      assembledPosition: [0, profile.bodiceCenterY, -profile.bustR],
       assembledRotation: [0, Math.PI, 0],
       cutCount: 1,
       cutOnFold: true,
       instructions: "Cut 1 on fold. Sew to front bodice at shoulders and sides.",
+      assembly: {
+        role: "torso-back",
+        anchors: backAnchors,
+      },
     },
   ];
-
-  return pieces;
 }

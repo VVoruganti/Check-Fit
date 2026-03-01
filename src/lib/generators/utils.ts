@@ -40,6 +40,50 @@ export function createCurvedShape(commands: ShapeCommand[]): THREE.Shape {
   return shape;
 }
 
+function getShapeBounds(
+  shape: THREE.Shape,
+  divisions: number = 80,
+): { minX: number; maxX: number; minY: number; maxY: number } {
+  const pts = shape.getPoints(divisions);
+  if (pts.length === 0) {
+    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  }
+
+  let minX = pts[0].x;
+  let maxX = pts[0].x;
+  let minY = pts[0].y;
+  let maxY = pts[0].y;
+
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i];
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  return { minX, maxX, minY, maxY };
+}
+
+/**
+ * Convert anchor points expressed in shape coordinates to local coordinates
+ * centered like the extruded geometry (geometry.center()).
+ */
+export function createLocalizedAnchors(
+  shape: THREE.Shape,
+  anchors: Record<string, [number, number]>,
+): Record<string, [number, number, number]> {
+  const bounds = getShapeBounds(shape);
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+
+  const out: Record<string, [number, number, number]> = {};
+  for (const [key, point] of Object.entries(anchors)) {
+    out[key] = [point[0] - centerX, point[1] - centerY, 0];
+  }
+  return out;
+}
+
 /** Auto-layout pieces in a grid for flat/exploded view. */
 export function assignFlatPositions(pieces: PatternPieceData[]): PatternPieceData[] {
   const cols = Math.ceil(Math.sqrt(pieces.length));

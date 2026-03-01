@@ -3,6 +3,7 @@ import type { GarmentDescription } from "@/types/garment";
 import type { PatternPieceData } from "@/data/pattern-pieces";
 import { SCALE, createCurvedShape, type ShapeCommand } from "./utils";
 import { PIECE_COLORS } from "@/data/piece-colors";
+import { computeDressFormProfile } from "@/lib/assembly-positions";
 
 export function generatePockets(
   measurements: BodyMeasurements,
@@ -11,8 +12,9 @@ export function generatePockets(
   const pocket = description.pockets;
   if (!pocket) return [];
 
+  const profile = computeDressFormProfile(measurements);
+
   if (pocket.style === "kangaroo") {
-    // Wide kangaroo pocket
     const width = (measurements.bust / 3) * SCALE;
     const height = 7 * SCALE;
 
@@ -33,7 +35,7 @@ export function generatePockets(
         shape,
         flatPosition: [0, -1, 0],
         flatRotation: [0, 0, 0],
-        assembledPosition: [0, 0.1, 0.5],
+        assembledPosition: [0, profile.waistY - 0.1, profile.bustR + 0.03],
         assembledRotation: [0, 0, 0],
         cutCount: 1,
         cutOnFold: false,
@@ -61,7 +63,7 @@ export function generatePockets(
         shape,
         flatPosition: [0, -1, 0],
         flatRotation: [0, 0, 0],
-        assembledPosition: [0.4, 0.3, 0.5],
+        assembledPosition: [0, profile.bodiceCenterY - 0.1, profile.bustR + 0.03],
         assembledRotation: [0, 0, 0],
         cutCount: pocket.count,
         cutOnFold: false,
@@ -70,6 +72,5 @@ export function generatePockets(
     ];
   }
 
-  // inseam pockets — no visible piece needed for demo
   return [];
 }

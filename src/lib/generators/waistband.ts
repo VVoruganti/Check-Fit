@@ -3,6 +3,7 @@ import type { GarmentDescription } from "@/types/garment";
 import type { PatternPieceData } from "@/data/pattern-pieces";
 import { SCALE, createShape } from "./utils";
 import { PIECE_COLORS } from "@/data/piece-colors";
+import { computeDressFormProfile } from "@/lib/assembly-positions";
 
 export function generateWaistband(
   measurements: BodyMeasurements,
@@ -11,7 +12,9 @@ export function generateWaistband(
   const wb = description.waistband;
   if (!wb) return [];
 
-  const waistHalf = (measurements.waist / 2 + 1) * SCALE; // +1 inch ease
+  const profile = computeDressFormProfile(measurements);
+
+  const waistHalf = (measurements.waist / 2 + 1) * SCALE;
   const bandHeight = wb.width * SCALE;
 
   const shape = createShape([
@@ -29,7 +32,7 @@ export function generateWaistband(
       shape,
       flatPosition: [0, 0.5, 0],
       flatRotation: [0, 0, 0],
-      assembledPosition: [0, 0.05, 0],
+      assembledPosition: [0, profile.waistY, profile.waistR],
       assembledRotation: [0, 0, 0],
       cutCount: 1,
       cutOnFold: true,

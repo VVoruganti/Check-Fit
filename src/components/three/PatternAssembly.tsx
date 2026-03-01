@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows } from "@react-three/drei";
 import PatternPiece3D from "./PatternPiece3D";
 import DressForm from "./DressForm";
 import type { PatternPieceData } from "@/data/pattern-pieces";
 import type { BodyMeasurements } from "@/types/measurements";
+import { solveAssembledTransforms } from "@/lib/assembly-solver";
 
 interface PatternAssemblyProps {
   assembled: boolean;
@@ -24,6 +25,10 @@ export default function PatternAssembly({
   measurements,
 }: PatternAssemblyProps) {
   const [hoveredPiece, setHoveredPiece] = useState<string | null>(null);
+  const solvedTransforms = useMemo(
+    () => solveAssembledTransforms(pieces, measurements),
+    [pieces, measurements],
+  );
 
   const handleHover = useCallback(
     (id: string | null) => {
@@ -66,21 +71,27 @@ export default function PatternAssembly({
       <DressForm measurements={measurements} />
 
       {/* Pattern pieces */}
-      {pieces.map((piece, index) => (
-        <PatternPiece3D
-          key={piece.id}
-          piece={piece}
-          assembled={assembled}
-          delay={index * 200}
-          highlighted={
-            hoveredPiece === piece.id || isolatedPiece === piece.id
-          }
-          dimmed={isolatedPiece !== null && isolatedPiece !== piece.id}
-          onPointerOver={() => handleHover(piece.id)}
-          onPointerOut={() => handleHover(null)}
-          onClick={() => onClickPiece(piece.id)}
-        />
-      ))}
+      {pieces.map((piece, index) => {
+        const solved = solvedTransforms[piece.id];
+        return (
+          <PatternPiece3D
+            key={piece.id}
+            piece={piece}
+            assembled={assembled}
+            delay={index * 200}
+            highlighted={
+              hoveredPiece === piece.id || isolatedPiece === piece.id
+            }
+            dimmed={isolatedPiece !== null && isolatedPiece !== piece.id}
+            onPointerOver={() => handleHover(piece.id)}
+            onPointerOut={() => handleHover(null)}
+            onClick={() => onClickPiece(piece.id)}
+            measurements={measurements}
+            assembledPositionOverride={solved?.position}
+            assembledRotationOverride={solved?.rotation}
+          />
+        );
+      })}
 
       {/* Controls */}
       <OrbitControls

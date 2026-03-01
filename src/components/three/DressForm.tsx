@@ -74,6 +74,24 @@ export default function DressForm({ measurements }: DressFormProps) {
     ];
   }, [measurements]);
 
+  const armCapsule = useMemo(() => {
+    if (!measurements) return null;
+
+    const armR = (measurements.upperArm / (2 * Math.PI)) * SCALE;
+    const shoulderHalfW = (measurements.shoulderWidth / 2) * SCALE;
+    const totalHeight = measurements.backLength * SCALE;
+    const shoulderY = totalHeight * 0.6;
+    const length = Math.max(measurements.armLength * SCALE * 0.42, 0.45);
+    const y = shoulderY - 0.08;
+
+    return {
+      radius: Math.max(armR * 0.9, 0.06),
+      length,
+      leftPos: [-shoulderHalfW - length * 0.45, y, 0] as [number, number, number],
+      rightPos: [shoulderHalfW + length * 0.45, y, 0] as [number, number, number],
+    };
+  }, [measurements]);
+
   return (
     <group ref={groupRef} position={[0, 0.1, 0]}>
       {/* Main form - wireframe */}
@@ -96,6 +114,29 @@ export default function DressForm({ measurements }: DressFormProps) {
           side={THREE.DoubleSide}
         />
       </mesh>
+
+      {armCapsule && (
+        <>
+          <mesh position={armCapsule.leftPos} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[armCapsule.radius, armCapsule.length, 8, 16]} />
+            <meshStandardMaterial
+              color="#d8d1c7"
+              wireframe
+              transparent
+              opacity={0.24}
+            />
+          </mesh>
+          <mesh position={armCapsule.rightPos} rotation={[0, 0, Math.PI / 2]}>
+            <capsuleGeometry args={[armCapsule.radius, armCapsule.length, 8, 16]} />
+            <meshStandardMaterial
+              color="#d8d1c7"
+              wireframe
+              transparent
+              opacity={0.24}
+            />
+          </mesh>
+        </>
+      )}
     </group>
   );
 }

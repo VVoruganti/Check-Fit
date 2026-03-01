@@ -32,7 +32,7 @@ export default function Layout() {
                 <path d="M2 12l10 5 10-5" />
               </svg>
             </div>
-            <span className="text-xl font-bold tracking-tight">StitchAI</span>
+            <span className="text-xl font-bold tracking-tight">Check-Fit</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -100,7 +100,7 @@ export default function Layout() {
         <div className="container mx-auto px-4 py-6">
           <Separator className="mb-6" />
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-            <p>StitchAI -- From Photo to Pattern</p>
+            <p>Check-Fit -- From Photo to Pattern</p>
             <p>Built with care for makers everywhere</p>
           </div>
         </div>

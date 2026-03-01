@@ -1,5 +1,18 @@
 import * as THREE from "three";
 
+export type AssemblyRole =
+  | "torso-front"
+  | "torso-back"
+  | "sleeve-left"
+  | "sleeve-right"
+  | "collar"
+  | "other";
+
+export interface PieceAssemblyMetadata {
+  role?: AssemblyRole;
+  anchors?: Record<string, [number, number, number]>;
+}
+
 export interface PatternPieceData {
   id: string;
   name: string;
@@ -12,6 +25,7 @@ export interface PatternPieceData {
   cutCount: number;
   cutOnFold: boolean;
   instructions: string;
+  assembly?: PieceAssemblyMetadata;
 }
 
 // Pattern pieces are now generated dynamically via generatePattern().

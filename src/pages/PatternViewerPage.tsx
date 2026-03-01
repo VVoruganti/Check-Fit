@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePattern } from "@/context/PatternContext";
+import { generatePatternPDF } from "@/lib/pdf";
 import type { PatternPieceData } from "@/data/pattern-pieces";
 
 /** Convert a THREE.Shape to an SVG path string. */
@@ -47,10 +48,21 @@ function shapeToSvgPath(piece: PatternPieceData, scale: number, offsetX: number,
 }
 
 export default function PatternViewerPage() {
-  const { patternPieces, garmentDescription } = usePattern();
+  const { patternPieces, garmentDescription, measurements } = usePattern();
   const [zoom, setZoom] = useState(1);
   const [showSeamAllowance, setShowSeamAllowance] = useState(true);
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+
+  const handleDownloadPDF = useCallback(async () => {
+    if (!garmentDescription || patternPieces.length === 0) return;
+    setGeneratingPDF(true);
+    try {
+      await generatePatternPDF(patternPieces, garmentDescription, measurements);
+    } finally {
+      setGeneratingPDF(false);
+    }
+  }, [patternPieces, garmentDescription, measurements]);
 
   // Auto-select the first piece when available
   const activePiece = selectedPiece ?? patternPieces[0]?.id ?? null;
@@ -91,11 +103,23 @@ export default function PatternViewerPage() {
             }
           </p>
         </div>
-        <Button variant="outline" className="shrink-0">
-          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Download PDF
+        <Button
+          variant="outline"
+          className="shrink-0"
+          disabled={!hasPieces || generatingPDF}
+          onClick={handleDownloadPDF}
+        >
+          {generatingPDF ? (
+            <svg className="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          )}
+          {generatingPDF ? "Generating..." : "Download PDF"}
         </Button>
       </div>
 

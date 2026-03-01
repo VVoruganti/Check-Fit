@@ -1,8 +1,11 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import { useSpring, animated } from "@react-spring/three";
 import { Float, Html } from "@react-three/drei";
 import type { PatternPieceData } from "@/data/pattern-pieces";
+import type { BodyMeasurements } from "@/types/measurements";
+import { createPieceGeometry, getWrapRadius } from "@/lib/wrap-geometry";
 
 interface PatternPiece3DProps {
   piece: PatternPieceData;
@@ -13,6 +16,9 @@ interface PatternPiece3DProps {
   onPointerOver: () => void;
   onPointerOut: () => void;
   onClick: () => void;
+  measurements?: BodyMeasurements;
+  assembledPositionOverride?: [number, number, number];
+  assembledRotationOverride?: [number, number, number];
 }
 
 export default function PatternPiece3D({
@@ -24,13 +30,40 @@ export default function PatternPiece3D({
   onPointerOver,
   onPointerOut,
   onClick,
+  measurements,
+  assembledPositionOverride,
+  assembledRotationOverride,
 }: PatternPiece3DProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
+  const wrapRadius = useMemo(() => {
+    if (!measurements) return 0.5;
+    return getWrapRadius(piece.id, measurements);
+  }, [piece.id, measurements]);
+
+  // Create geometry + pre-computed flat & bent vertex arrays
+  const pieceGeo = useMemo(
+    () =>
+      createPieceGeometry(piece.shape, wrapRadius, {
+        pieceId: piece.id,
+        measurements,
+      }),
+    [piece.id, piece.shape, wrapRadius, measurements],
+  );
+
+  useEffect(() => {
+    return () => pieceGeo.geometry.dispose();
+  }, [pieceGeo]);
+
   const spring = useSpring({
-    position: assembled ? piece.assembledPosition : piece.flatPosition,
-    rotation: assembled ? piece.assembledRotation : piece.flatRotation,
+    position: assembled
+      ? (assembledPositionOverride ?? piece.assembledPosition)
+      : piece.flatPosition,
+    rotation: assembled
+      ? (assembledRotationOverride ?? piece.assembledRotation)
+      : piece.flatRotation,
+    bendT: assembled ? 1 : 0,
     scale: highlighted ? 1.08 : dimmed ? 0.85 : 1,
     opacity: dimmed ? 0.2 : hovered ? 0.9 : 0.7,
     emissiveIntensity: hovered || highlighted ? 0.15 : 0,
@@ -40,6 +73,22 @@ export default function PatternPiece3D({
       tension: assembled ? 80 : 120,
       friction: 26,
     },
+  });
+
+  // Lerp vertex positions between flat and bent each frame
+  useFrame(() => {
+    const t = (spring.bendT as any).get() as number;
+    const pos = pieceGeo.geometry.getAttribute("position");
+    const arr = pos.array as Float32Array;
+    const { flatVerts, bentVerts } = pieceGeo;
+
+    for (let i = 0; i < arr.length; i++) {
+      arr[i] = flatVerts[i] + (bentVerts[i] - flatVerts[i]) * t;
+    }
+    pos.needsUpdate = true;
+
+    // Recompute normals so lighting stays correct as the piece bends
+    pieceGeo.geometry.computeVertexNormals();
   });
 
   const handlePointerOver = (e: THREE.Event) => {
@@ -60,12 +109,6 @@ export default function PatternPiece3D({
     onClick();
   };
 
-  const geometry = new THREE.ExtrudeGeometry(piece.shape, {
-    depth: 0.02,
-    bevelEnabled: false,
-  });
-  geometry.center();
-
   const content = (
     <animated.mesh
       ref={meshRef}
@@ -75,7 +118,7 @@ export default function PatternPiece3D({
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
       onClick={handleClick}
-      geometry={geometry}
+      geometry={pieceGeo.geometry}
     >
       <animated.meshStandardMaterial
         color={piece.color}
@@ -87,7 +130,6 @@ export default function PatternPiece3D({
         roughness={0.8}
         metalness={0.05}
       />
-      {/* Label */}
       {(hovered || highlighted) && (
         <Html center distanceFactor={6} style={{ pointerEvents: "none" }}>
           <div
@@ -104,7 +146,6 @@ export default function PatternPiece3D({
     </animated.mesh>
   );
 
-  // Only float when not assembled
   if (!assembled) {
     return (
       <Float
