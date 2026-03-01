@@ -20,7 +20,7 @@
 
 ## The Problem
 
-Creating sewing patterns from existing garments is a skill that takes years to develop. Hobbyists, cosplayers, and fashion designers spend hours manually drafting patterns, often needing expensive software or professional pattern-making knowledge. There's no easy way to go from "I want to make *that*" to a printable pattern fitted to your body.
+Creating sewing patterns from existing garments is a skill that takes years to develop. Hobbyists, cosplayers, and fashion designers spend hours manually drafting patterns, often needing expensive software or professional pattern-making knowledge. There's no easy way to go from "I want to make _that_" to a printable pattern fitted to your body.
 
 ## The Solution
 
@@ -100,38 +100,45 @@ sequenceDiagram
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | React 19 + Vite 7 + TypeScript | UI framework with fast HMR |
-| **Styling** | Tailwind CSS v4 + Shadcn UI | Warm, crafty design system |
-| **3D Engine** | Three.js + React Three Fiber | Pattern piece visualization |
-| **3D Animation** | @react-spring/three | Spring physics assembly animation |
-| **Backend** | Hono v4 + Bun | Lightweight API server |
-| **AI/LLM** | Mistral AI (mistral-large) | Vision analysis + pattern generation |
-| **PDF** | jsPDF | Print-ready pattern export |
-| **Routing** | React Router v7 | Multi-step wizard flow |
+| Layer            | Technology                     | Purpose                              |
+| ---------------- | ------------------------------ | ------------------------------------ |
+| **Frontend**     | React 19 + Vite 7 + TypeScript | UI framework with fast HMR           |
+| **Styling**      | Tailwind CSS v4 + Shadcn UI    | Warm, crafty design system           |
+| **3D Engine**    | Three.js + React Three Fiber   | Pattern piece visualization          |
+| **3D Animation** | @react-spring/three            | Spring physics assembly animation    |
+| **Backend**      | Hono v4 + Bun                  | Lightweight API server               |
+| **AI/LLM**       | Mistral AI (mistral-large)     | Vision analysis + pattern generation |
+| **PDF**          | jsPDF                          | Print-ready pattern export           |
+| **Routing**      | React Router v7                | Multi-step wizard flow               |
 
 ## Key Features
 
 ### Multimodal Garment Analysis
+
 Upload any garment photo and the vision model identifies the garment category (dress, top, hoodie, jacket, pants, skirt, jumpsuit), individual construction components, closure types, and fit characteristics — all returned as structured JSON.
 
 ### Conversational Design Refinement
+
 Don't just accept what the AI suggests — have a conversation. Modify the design through natural language ("add a hood", "make it knee-length", "switch to a zipper closure"). Changes stream back in real-time with updated piece lists.
 
 ### Parametric Pattern Generation
+
 The LLM generates `ShapeCommand` arrays — sequences of move, line, and curve operations in inches — that are mathematically scaled to the user's 12 body measurements (bust, waist, hip, shoulder width, arm length, inseam, and more).
 
 ### 3D Assembly Animation
+
 The centerpiece demo: watch flat pattern pieces animate with spring physics onto a procedural wireframe mannequin. Orbit, zoom, hover to inspect, click to isolate individual pieces. Cylindrical geometry bending simulates how fabric wraps around the body.
 
 ### Per-Piece Refinement
+
 After generation, refine individual pieces through a dedicated chat interface in the pattern viewer. The AI adjusts shape commands while respecting neighboring piece constraints.
 
 ### Print-Ready PDF Export
+
 Download tiled PDF layouts with seam allowances, piece labels, grain direction, cut counts, fold indicators, and step-by-step sewing instructions — ready for home printing.
 
 ### Voice Input
+
 Speak your refinements hands-free. Audio is transcribed via Mistral and fed into the chat pipeline, keeping your hands on the fabric.
 
 ## Project Structure
@@ -208,25 +215,25 @@ The app will be available at `http://localhost:5173` with the API server on port
 
 ### Commands
 
-| Command | Description |
-|---------|------------|
-| `bun run dev` | Start Vite dev server |
-| `bun run dev:server` | Start Hono backend |
-| `bun run dev:all` | Run both concurrently |
-| `bun run build` | Type-check + production build |
-| `bun run lint` | ESLint |
+| Command              | Description                   |
+| -------------------- | ----------------------------- |
+| `bun run dev`        | Start Vite dev server         |
+| `bun run dev:server` | Start Hono backend            |
+| `bun run dev:all`    | Run both concurrently         |
+| `bun run build`      | Type-check + production build |
+| `bun run lint`       | ESLint                        |
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/vision` | POST | Analyze garment image via multimodal LLM |
-| `/api/chat` | POST | Conversational refinement (SSE streaming) |
-| `/api/generate-pieces` | POST | Generate pattern piece ShapeCommands |
-| `/api/refine-piece` | POST | Refine individual piece (SSE streaming) |
-| `/api/transcribe` | POST | Audio-to-text transcription |
-| `/api/tts` | POST | Text-to-speech synthesis |
-| `/api/health` | GET | Health check |
+| Endpoint               | Method | Description                               |
+| ---------------------- | ------ | ----------------------------------------- |
+| `/api/vision`          | POST   | Analyze garment image via multimodal LLM  |
+| `/api/chat`            | POST   | Conversational refinement (SSE streaming) |
+| `/api/generate-pieces` | POST   | Generate pattern piece ShapeCommands      |
+| `/api/refine-piece`    | POST   | Refine individual piece (SSE streaming)   |
+| `/api/transcribe`      | POST   | Audio-to-text transcription               |
+| `/api/tts`             | POST   | Text-to-speech synthesis                  |
+| `/api/health`          | GET    | Health check                              |
 
 ## Future Extensibility
 
@@ -240,7 +247,7 @@ The app will be available at `http://localhost:5173` with the API server on port
 
 ## Built With
 
-Built in 24 hours for [Hackathon Name] by leveraging Mistral AI's multimodal capabilities, Three.js for immersive visualization, and a conversational UX that makes pattern drafting accessible to everyone.
+Built in 24 hours for the Mistral Worldwide Hackathon by leveraging Mistral AI's multimodal capabilities, Three.js for immersive visualization, and a conversational UX that makes pattern drafting accessible to everyone.
 
 ---
 
