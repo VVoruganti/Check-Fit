@@ -1,10 +1,12 @@
 {
-  "name": "tempapp",
+  "name": "Check-Fit",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "cd server && bun --watch src/index.ts",
+    "dev:all": "bunx concurrently \"bun run dev\" \"bun run dev:server\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -63,4 +63,5 @@ export interface GarmentDescription {
     type: ClosureType;
     placement: ClosurePlacement;
   };
+  constructionNotes?: string;
 }

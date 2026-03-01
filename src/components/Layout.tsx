@@ -9,8 +9,7 @@ import {
 
 const navItems = [
   { path: "/", label: "Home", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
-  { path: "/upload", label: "Upload", icon: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" },
-  { path: "/measurements", label: "Measurements", icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
+  { path: "/create", label: "Create Pattern", icon: "M12 4.5v15m7.5-7.5h-15" },
   { path: "/pattern", label: "Pattern Viewer", icon: "M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" },
   { path: "/assembly", label: "3D Assembly", icon: "M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" },
   { path: "/instructions", label: "Instructions", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
@@ -38,7 +37,7 @@ export default function Layout() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
               return (
                 <Tooltip key={item.path}>
                   <TooltipTrigger asChild>
@@ -65,7 +64,7 @@ export default function Layout() {
           {/* Mobile Navigation */}
           <nav className="flex md:hidden items-center gap-1">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
               return (
                 <Tooltip key={item.path}>
                   <TooltipTrigger asChild>
